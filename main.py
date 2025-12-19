@@ -35,6 +35,7 @@ def go(config: DictConfig):
     # Move to a temporary directory
     with tempfile.TemporaryDirectory() as tmp_dir:
 
+
         if "download" in active_steps:
             # Download file and load in W&B
             _ = mlflow.run(
@@ -48,33 +49,32 @@ def go(config: DictConfig):
                     "artifact_description": "Raw file as downloaded"
                 },
             )
+            
 
         if "basic_cleaning" in active_steps:
             _ = mlflow.run(
-                f"{config['main']['components_repository']}/basic_cleaning",
+                os.path.join(hydra.utils.get_original_cwd(), "src", "basic_cleaning"),
                 "main",
-                env_manager="conda",
                 parameters={
                     "input_artifact": "sample.csv:latest",
                     "output_artifact": "clean_sample.csv",
-                    "output_type": "clean_data",
-                    "output_description": "Data after basic cleaning",
-                    "min_price": config["etl"]["min_price"],
-                    "max_price": config["etl"]["max_price"],
+                    "output_type": "clean_sample",
+                    "output_description": "Data with outliers and null values removed",
+                    "min_price": config['etl']['min_price'],
+                    "max_price": config['etl']['max_price'],
                 },
             )
 
         if "data_check" in active_steps:
             _ = mlflow.run(
-                os.path.join(os.getcwd(), "src", "data_check"),
+                os.path.join(hydra.utils.get_original_cwd(), "src", "data_check"),
                 "main",
-                env_manager="conda",
                 parameters={
                     "csv": "clean_sample.csv:latest",
                     "ref": "clean_sample.csv:reference",
                     "kl_threshold": config["data_check"]["kl_threshold"],
-                    "min_price": config["etl"]["min_price"],
-                    "max_price": config["etl"]["max_price"],
+                    "min_price": config['etl']['min_price'],
+                    "max_price": config['etl']['max_price'],
                 },
             )
         
@@ -117,12 +117,13 @@ def go(config: DictConfig):
         
         if "test_regression_model" in active_steps:
             _ = mlflow.run(
-            f"{config['main']['components_repository']}/test_regression_model",
-            "main",
-            parameters = {
-                "mlflow_model": "random_forest_model:prod",
-                "test_dataset": "test_data.csv:latest",
-                },
+                f"{config['main']['components_repository']}/test_regression_model",
+                "main",
+                parameters={
+                    "mlflow_model": "random_forest_export:prod",
+                    "test_dataset": "test_data.csv:latest"
+                }
             )
+
 if __name__ == "__main__":
     go()
